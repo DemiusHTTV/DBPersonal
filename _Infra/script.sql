@@ -32,9 +32,7 @@ COMMENT ON COLUMN Params.unit IS 'Единица измерения';
 CREATE TABLE EquipmentParams(
     id_type  int NOT NULL,
     id_param int NOT NULL,
-    PRIMARY KEY (id_type, id_param),
-    FOREIGN KEY (id_type)  REFERENCES TypeOfEquipment(id),
-    FOREIGN KEY (id_param) REFERENCES Params(id)
+    PRIMARY KEY (id_type, id_param)
 );
 
 COMMENT ON TABLE  EquipmentParams          IS 'Соответствие оборудования и измеряемых им параметров';
@@ -45,8 +43,7 @@ COMMENT ON COLUMN EquipmentParams.id_param IS 'Измеряемый параме
 CREATE TABLE Positions(
     id                 int PRIMARY KEY,
     name               text NOT NULL,
-    ID_TypeOfEquipment int,
-    FOREIGN KEY (ID_TypeOfEquipment) REFERENCES TypeOfEquipment(id)
+    ID_TypeOfEquipment int
 );
 
 COMMENT ON TABLE  Positions                    IS 'Должности личного состава метеопоста';
@@ -58,8 +55,7 @@ COMMENT ON COLUMN Positions.ID_TypeOfEquipment IS 'Штатное оборудо
 CREATE TABLE Users(
     id           int PRIMARY KEY,
     name         text NOT NULL,
-    ID_Positions int,
-    FOREIGN KEY (ID_Positions) REFERENCES Positions(id)
+    ID_Positions int
 );
 
 COMMENT ON TABLE  Users              IS 'Личный состав метеопоста';
@@ -72,8 +68,7 @@ CREATE TABLE Packs(
     id           int PRIMARY KEY,
     name         text NOT NULL,
     id_user      int,
-    created_date timestamp,
-    FOREIGN KEY (id_user) REFERENCES Users(id)
+    created_date timestamp
 );
 
 COMMENT ON TABLE  Packs              IS 'Пачка — единичный сеанс метеонаблюдения';
@@ -88,10 +83,7 @@ CREATE TABLE Measurements(
     id_pack  int NOT NULL,
     id_param int NOT NULL,
     id_type  int NOT NULL,
-    value    numeric(10, 2),
-    FOREIGN KEY (id_pack)  REFERENCES Packs(id),
-    FOREIGN KEY (id_param) REFERENCES Params(id),
-    FOREIGN KEY (id_type)  REFERENCES TypeOfEquipment(id)
+    value    numeric(10, 2)
 );
 
 COMMENT ON TABLE  Measurements          IS 'Результаты измерений метеопараметров';

@@ -149,7 +149,14 @@ INSERT INTO Measurements (id, id_pack, id_param, id_type, value) VALUES (9, 3, 6
 
 
 
-SELECT *
+SELECT Users.name            AS метеоролог,
+       Positions.name        AS должность,
+       Packs.name            AS пачка,
+       Packs.created_date    AS дата_замера,
+       TypeOfEquipment.name  AS оборудование,
+       Params.name           AS параметр,
+       Measurements.value    AS значение,
+       Params.unit           AS единица
 FROM Users, Positions, Packs, Measurements, Params, TypeOfEquipment
 WHERE Users.ID_Positions = Positions.id
   AND Packs.id_user = Users.id

@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "BDPersonal",
+			"path": ".."
+		},
+		{
+			"name": "_Infra",
+			"path": "../../Db2026/_Infra"
+		}
+	],
+	"settings": {}
+}

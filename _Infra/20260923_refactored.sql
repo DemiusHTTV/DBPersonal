@@ -177,15 +177,16 @@ values(1, 'Высота', 1),
 (5, 'Скорость ветра', 10);
 
 alter table measurment_input_params
+	add column type_of_params_id integer references type_of_params(id),
+	add column value numeric(8,2);
+
+alter table measurment_input_params
 	drop column height,
 	drop column temperature,
 	drop column pressure,
 	drop column wind_direction,
 	drop column wind_speed;
 
-alter table measurment_input_params
-	add column type_of_params_id integer references type_of_params(id),
-	add column value numeric(8,2);
 
 
 delete from measurment_input_params;

@@ -1,96 +1,67 @@
--- DML-скрипт для очистки и заполнения тестовыми данными (PostgreSQL)
+-- 1. Заполняем справочники (измеряемые параметры, единицы измерения и базовые единицы)
+-- Сначала базовые единицы, так как на них ссылаются производные
+INSERT INTO base_unit (id, name) VALUES
+(1, 'Килограмм'),
+(2, 'Метр'),
+(3, 'Секунда'),
+(4, 'Градус Цельсия');
 
--- 1. Очистка транзакционных данных
-DELETE FROM measurment_input_params;
-DELETE FROM measurment_baths;
+-- Единицы измерения, ссылающиеся на базовые
+INSERT INTO units_of_measurement (id, name, base_unit_id) VALUES
+(1, 'Грамм', 1),
+(2, 'Килограмм', 1),
+(3, 'Миллиметр', 2),
+(4, 'Сантиметр', 2),
+(5, 'Минута', 3),
+(6, 'Килограмм на кубический метр', 1); -- Плотность
 
--- 2. (Опционально) Заполнение справочников, если они пусты. 
---    ID в справочниках должны строго совпадать с ID в INSERT ниже.
-
--- Справочник сотрудников (предполагаем, что их 3)
-DELETE FROM employees;
-INSERT INTO employees (id, name, birthday, military_rank_id) VALUES
-(1, 'Иванов А.А.', '1990-05-15'::timestamp, 1),
-(2, 'Петров Б.Б.', '1992-08-20'::timestamp, 2),
-(3, 'Сидоров В.В.', '1995-01-10'::timestamp, 1);
-
--- Справочник оборудования (ДМК и ВР)
-DELETE FROM measurment_types;
-INSERT INTO measurment_types (id, short_name, description) VALUES
-(1, 'ДМК', 'Десантный метеокомплект'),
-(2, 'ВР', 'Ветровое ружье');
-
--- Справочник типов параметров (ID должны совпадать с логикой в основном INSERT)
-DELETE FROM type_of_params;
+-- Типы параметров (то, что мы измеряем: вес, рост, температура)
 INSERT INTO type_of_params (id, name, unit_id) VALUES
-(1, 'Высота метеопоста', 1),   -- метры
-(2, 'Температура', 2),         -- градусы Цельсия
-(3, 'Давление', 3),            -- мм рт. ст.
-(4, 'Направление ветра', 4),   -- большие деления угломера
-(5, 'Скорость ветра', 5),      -- м/с
-(6, 'Дальность сноса пуль', 6);-- метры
+(1, 'Вес', 2),
+(2, 'Рост', 4),
+(3, 'Температура тела', 4),
+(4, 'Объем грудной клетки', 4),
+(5, 'Плотность', 6);
 
--- 3. Создание 30 пачек измерений (по 10 на каждого сотрудника, чередуя оборудование)
-WITH batches AS (
-    INSERT INTO measurment_baths (id, emploee_id, measurment_type_id, started)
-    SELECT 
-        g.id,
-        -- Распределение по сотрудникам: 1,2,3,1,2,3...
-        ((g.id - 1) % 3) + 1 as emploee_id,
-        -- Чередование оборудования: нечетные - ДМК (1), четные - ВР (2)
-        CASE WHEN g.id % 2 = 1 THEN 1 ELSE 2 END as measurment_type_id,
-        -- Время: имитация истории (каждая следующая пачка на 1 минуту раньше)
-        NOW() - (INTERVAL '1 minute' * g.id) as started
-    FROM generate_series(1, 30) AS g(id)
-    RETURNING id, measurment_type_id
-)
+-- Воинские звания
+INSERT INTO military_ranks (id, description) VALUES
+(1, 'Рядовой'),
+(2, 'Ефрейтор'),
+(3, 'Сержант'),
+(4, 'Лейтенант'),
+(5, 'Капитан');
 
--- 4. Генерация 180 строк параметров (6 параметров * 30 пачек)
-INSERT INTO measurment_input_params (measurment_bath_id, type_of_params_id, value)
-SELECT 
-    b.id,
-    p.id as type_of_params_id,
-    CASE p.id
-        -- 1. Высота метеопоста: от -200 до 500 (целое)
-        WHEN 1 THEN (FLOOR(RANDOM() * 701) - 200)::numeric
-        -- 2. Температура: от -58.0 до 58.0 (один знак после запятой)
-        WHEN 2 THEN (ROUND((RANDOM() * 116.0 - 58.0) * 10) / 10.0)::numeric
-        -- 3. Давление: от 500 до 900 (целое)
-        WHEN 3 THEN (FLOOR(RANDOM() * 401) + 500)::numeric
-        -- 4. Направление ветра: от 0 до 59 (целое)
-        WHEN 4 THEN (FLOOR(RANDOM() * 60))::numeric
-        -- 5. Скорость ветра: 0-15 для ДМК, NULL для ВР
-        WHEN 5 THEN 
-            CASE 
-                WHEN b.measurment_type_id = 1 THEN (FLOOR(RANDOM() * 16))::numeric
-                ELSE NULL 
-            END
-        -- 6. Дальность сноса пуль: 0-150 для ВР, NULL для ДМК
-        WHEN 6 THEN 
-            CASE 
-                WHEN b.measurment_type_id = 2 THEN (FLOOR(RANDOM() * 151))::numeric
-                ELSE NULL 
-            END
-    END
-FROM batches b
--- Соединяем каждую пачку со всеми 6-ю типами параметров
-CROSS JOIN (VALUES 
-    (1), (2), (3), (4), (5), (6)
-) AS p(id)
-ORDER BY b.id, p.id;
+-- 2. Заполняем сотрудников
+-- В таблицу employees добавлено поле military_rank_id, которое было в схеме CREATE TABLE
+INSERT INTO employees (id, name, birthday, military_rank_id) VALUES
+(1, 'Иванов Алексей Петрович', '1990-05-12 00:00:00', 4),
+(2, 'Петров Сергей Иванович', '1988-11-23 00:00:00', 5),
+(3, 'Сидоров Николай Васильевич', '1995-02-14 00:00:00', 2),
+(4, 'Смирнов Андрей Викторович', '1992-08-30 00:00:00', 3);
 
--- 5. Проверка результата
-RAISE NOTICE 'Создано % пачек измерений.', (SELECT COUNT(*) FROM measurment_baths);
-RAISE NOTICE 'Создано % записей параметров.', (SELECT COUNT(*) FROM measurment_input_params);
+-- 3. Заполняем "пачки" измерений (measurement_baths)
+-- Каждая запись — это сессия измерений конкретного сотрудника
+INSERT INTO measurment_baths (id, emploee_id, measurment_type_id, started) VALUES
+(1, 1, 1, '2025-10-06 09:15:00'), -- Иванов, измерение веса
+(2, 1, 2, '2025-10-06 09:16:00'), -- Иванов, измерение роста
+(3, 2, 1, '2025-10-06 10:05:00'), -- Петров, измерение веса
+(4, 3, 3, '2025-10-06 11:20:00'), -- Сидоров, измерение температуры
+(5, 4, 4, '2025-10-06 14:00:00'), -- Смирнов, объем грудной клетки
+(6, 2, 5, '2025-10-06 14:30:00'); -- Петров, плотность (доп. параметр)
 
--- Визуальная проверка последних записей
-SELECT 
-    b.id, 
-    e.name as employee, 
-    mt.short_name as equipment, 
-    b.started
-FROM measurment_baths b
-JOIN employees e ON b.emploee_id = e.id
-JOIN measurment_types mt ON b.measurment_type_id = mt.id
-ORDER BY b.id DESC
-LIMIT 5;
+-- 4. Заполняем значения параметров для каждой "пачки" измерений
+-- measurment_bath_id связывает значение с конкретной сессией из шага 3
+-- type_of_params_id связывает значение с типом параметра из шага 1
+INSERT INTO measurment_input_params (id, measurment_bath_id, type_of_params_id, value) VALUES
+-- Пачка 1 (Иванов, Вес): значение в килограммах (unit_id 2)
+(1, 1, 1, 82.50),
+-- Пачка 2 (Иванов, Рост): значение в сантиметрах (unit_id 4)
+(2, 2, 2, 185.00),
+-- Пачка 3 (Петров, Вес)
+(3, 3, 1, 95.00),
+-- Пачка 4 (Сидоров, Температура тела): значение в градусах Цельсия (unit_id 4)
+(4, 4, 3, 36.60),
+-- Пачка 5 (Смирнов, Объем грудной клетки)
+(5, 5, 4, 104.00),
+-- Пачка 6 (Петров, Плотность)
+(6, 6, 5, 1.03);

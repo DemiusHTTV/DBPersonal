@@ -1,7 +1,6 @@
-begin;
-
-do $structure$
+do $$
 begin
+    -- транзакция 1: структура
     drop table if exists measurements cascade;
     drop table if exists equipment_params cascade;
     drop table if exists packs cascade;
@@ -79,16 +78,10 @@ begin
         t_to       numeric(4,1) not null,
         correction numeric(3,1) not null
     );
-end;
-$structure$;
 
-commit;
+    commit;
 
-
-begin;
-
-do $data$
-begin
+    -- транзакция 2: тестовые данные
     insert into equipment_types (id, short_name, name) values
         (1, 'ДМК', 'Десантный метеорологический комплект'),
         (2, 'ВР',  'Ветровое ружьё');
@@ -143,16 +136,10 @@ begin
     perform setval('packs_seq',                   (select max(id) from packs)                   + 1, false);
     perform setval('measurements_seq',            (select max(id) from measurements)            + 1, false);
     perform setval('temperature_corrections_seq', (select max(id) from temperature_corrections) + 1, false);
-end;
-$data$;
 
-commit;
+    commit;
 
-
-begin;
-
-do $constraints$
-begin
+    -- транзакция 3: связи и ограничения
     alter table equipment_types         add constraint pk_equipment_types         primary key (id);
     alter table params                  add constraint pk_params                  primary key (id);
     alter table positions               add constraint pk_positions               primary key (id);
@@ -211,10 +198,10 @@ begin
     alter table packs
         add constraint ck_packs_created_date
             check (created_date >= timestamp '2000-01-01 00:00:00');
-end;
-$constraints$;
 
-commit;
+    commit;
+end;
+$$;
 
 
 select packs.created_date                 as "Дата замера",

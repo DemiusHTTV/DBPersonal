@@ -80,6 +80,7 @@ begin
     );
 
     commit;
+    begin;
 
     -- транзакция 2: тестовые данные
     insert into equipment_types (id, short_name, name) values
@@ -138,6 +139,7 @@ begin
     perform setval('temperature_corrections_seq', (select max(id) from temperature_corrections) + 1, false);
 
     commit;
+    begin;
 
     -- транзакция 3: связи и ограничения
     alter table equipment_types         add constraint pk_equipment_types         primary key (id);

@@ -3,6 +3,7 @@ BEGIN
     BEGIN
         DROP FUNCTION IF EXISTS public.my_interpolation_func(NUMERIC) CASCADE;
         DROP TABLE IF EXISTS public.calc_temperature_correction CASCADE;
+        DROP TYPE IF EXISTS public."interType" CASCADE;
     END;
 
 
@@ -23,6 +24,19 @@ BEGIN
             (30, 3.5),
             (40, 4.5);
     END;
+    begin 
+    CREATE TYPE public."interType" AS
+(
+	x0 numeric,
+	x1 numeric,
+	y0 numeric,
+	y1 numeric
+);
+
+    ALTER TYPE public."interType"
+    OWNER TO postgres;
+    end;
+
 
     -- 3. Создание первой функции
     EXECUTE $func$
@@ -80,7 +94,6 @@ BEGIN
     $func$;
 
 END;
-$$;CREATE OR REPLACE FUNCTION public.my_interpolation_func(p_target_temp NUMERIC)
 RETURNS public.interType AS $BODY$
 DECLARE 
     var_result public.interType;
@@ -123,20 +136,6 @@ BEGIN
 
     RETURN var_result; 
 END;
-$BODY$ LANGUAGE plpgsql;
-CREATE OR REPLACE FUNCTION public.my_interpolation_func()
-RETURNS public.interType AS $BODY$
-DECLARE 
-    var_result public.interType;
-BEGIN
-    
-    var_result.x0 := 1;
-    var_result.y0 := 1;
-    var_result.x1 := 1;
-    var_result.y1 := 1;
-
-    RETURN var_result; 
-END;
-$BODY$ LANGUAGE plpgsql;
+$$
 
 

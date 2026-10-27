@@ -27,61 +27,66 @@ begin
         bullet_drift      numeric
     );
 
-    -- fn_validate_params
-    create or replace function fn_validate_params(p input_params)
+    -- fn_check_param
+    create or replace function fn_check_param(p_param_id integer, p_value numeric)
     returns text
     language plpgsql
     stable
     as $body$
     declare
-        v_result text;
+        v_name     text;
+        v_min      numeric;
+        v_max      numeric;
+        v_digits   smallint;
+        v_template text;
     begin
-        with expected as (
-            select params.id   as param_id,
-                   params.name as param_name,
-                   const_param_limits.min_value,
-                   const_param_limits.max_value,
-                   const_param_limits.fraction_digits,
-                   case params.id
-                       when 1 then p.height
-                       when 2 then p.temperature
-                       when 3 then p.pressure
-                       when 4 then p.wind_direction
-                       when 5 then p.wind_speed
-                       when 6 then p.bullet_drift
-                   end as value
-            from equipment_params
-            join params
-              on params.id = equipment_params.param_id
-            join const_param_limits
-              on const_param_limits.param_id = params.id
-            where equipment_params.equipment_type_id = p.equipment_type_id
-        ),
-        checked as (
-            select expected.*,
-                   case
-                       when expected.value is null              then 'REQUIRED'
-                       when expected.value < expected.min_value then 'RANGE'
-                       when expected.value > expected.max_value then 'RANGE'
-                       when round(expected.value, expected.fraction_digits)
-                            <> expected.value                   then 'PRECISION'
-                   end as error_code
-            from expected
-        )
-        select string_agg(
-                   format(validation_errors.message_template,
-                          checked.param_name,
-                          checked.value,
-                          checked.min_value,
-                          checked.max_value,
-                          checked.fraction_digits),
-                   '; ' order by checked.param_id)
-          into v_result
-          from checked
-          join validation_errors
-            on validation_errors.code = checked.error_code;
+        select params.name,
+               const_param_limits.min_value,
+               const_param_limits.max_value,
+               const_param_limits.fraction_digits
+          into v_name, v_min, v_max, v_digits
+          from params
+          join const_param_limits
+            on const_param_limits.param_id = params.id
+         where params.id = p_param_id;
 
-        return coalesce(v_result, '');
+        if p_value is null then
+            select message_template into v_template from validation_errors where code = 'REQUIRED';
+        elsif p_value < v_min or p_value > v_max then
+            select message_template into v_template from validation_errors where code = 'RANGE';
+        elsif round(p_value, v_digits) <> p_value then
+            select message_template into v_template from validation_errors where code = 'PRECISION';
+        else
+            return '';
+        end if;
+
+        return format(v_template, v_name, p_value, v_min, v_max, v_digits);
+    end;
+    $body$;
+
+    -- fn_validate_params
+    create or replace function fn_validate_params(p_set input_params)
+    returns text
+    language plpgsql
+    stable
+    as $body$
+    declare
+        v_errors text[];
+    begin
+        v_errors := array_remove(array[
+            fn_check_param(1, p_set.height),
+            fn_check_param(2, p_set.temperature),
+            fn_check_param(3, p_set.pressure),
+            fn_check_param(4, p_set.wind_direction)
+        ], '');
+
+        if p_set.equipment_type_id = 1 then
+            v_errors := array_remove(v_errors || fn_check_param(5, p_set.wind_speed), '');
+        elsif p_set.equipment_type_id = 2 then
+            v_errors := array_remove(v_errors || fn_check_param(6, p_set.bullet_drift), '');
+        end if;
+
+        return array_to_string(v_errors, '; ');
     end;
     $body$;
 

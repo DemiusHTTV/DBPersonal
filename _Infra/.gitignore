@@ -1,2 +1,5 @@
 .env
 pgadmin/
+backup/
+mssql-data/
+postgres=data/

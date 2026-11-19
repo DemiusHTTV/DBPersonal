@@ -26,7 +26,7 @@ validated as (
                    pack_params.bullet_drift)::input_params
            ) as errors
     from pack_params
-),
+)
 select rank() over (order by count(*) filter (where validated.errors <> '')) as "Место",
        users.full_name                                  as "Пользователь",
        positions.name                                   as "Должность",
